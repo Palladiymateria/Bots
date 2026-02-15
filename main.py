@@ -6,7 +6,7 @@ from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 # --- КОНФИГУРАЦИЯ ---
-TOKEN = "8473819197:AAHxle-Tt9267hpoBhBSGEuTgUm-6mPzA4U"
+TOKEN = "BOT_TOKEN"
 WHITELIST_IDS = [7918010548]
 MY_NICK = "@NoNameOkey"
 GROUP_URL = "https://t.me/tajikistan_tether"
@@ -188,4 +188,5 @@ async def main():
 
 
 if __name__ == "__main__":
+
     asyncio.run(main())
