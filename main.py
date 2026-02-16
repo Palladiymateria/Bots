@@ -6,18 +6,21 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# Подключаем библиотеку для чтения переменных
-from dotenv import load_dotenv
+# --- БЕЗОПАСНЫЙ ИМПОРТ ---
+# Бот попробует загрузить .env, но если его нет (на хостинге), он не сломается
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 
-# Загружаем .env (для запуска на компьютере)
-load_dotenv()
-
-# --- БЕЗОПАСНЫЙ ТОКЕН ---
+# --- ПОЛУЧЕНИЕ ТОКЕНА ---
+# Бот берет токен из настроек хостинга
 TOKEN = os.getenv("API_TOKEN")
 
-# Проверка токена
+# Если токен забыли добавить в настройки
 if not TOKEN:
-    print("❌ ОШИБКА: Токен не найден! Убедитесь, что в .env или на хостинге есть переменная API_TOKEN")
+    print("❌ ОШИБКА: Токен не найден! Добавьте переменную API_TOKEN в настройках хостинга.")
     sys.exit()
 
 # --- КОНФИГУРАЦИЯ ---
@@ -27,18 +30,18 @@ GROUP_URL = "https://t.me/tajikistan_tether"
 
 ALLOWED_USERNAMES = ["nazar7zoda", "x774n", "chinascorp", "didar_p2p", "dovud_p2p", "nonameokey"]
 
-# Флаги по умолчанию (Оба включены)
+# Флаги (Оба включены при запуске)
 PROFANITY_FILTER_ACTIVE = True 
 SPAM_FILTER_ACTIVE = True      
 
-# 1. СПИСОК СПАМА (Управляется командой /spam)
+# 1. СПИСОК СПАМА (Управляется через /spam)
 SPAM_WORDS = [
     "заработок","подпишись", "сигналы", "профит", "доход", "раскрутка", "казино",
     "ставки", "vsem_privet", "в лс", "писать в лс", "p2p связки",
     "http", "https", ".com", ".ru", ".net", ".org", "t.me"
 ]
 
-# 2. СПИСОК МАТОВ (Управляется командой /mode)
+# 2. СПИСОК МАТОВ (Управляется через /mode)
 PROFANITY_WORDS = [
     "хуй", "хyй", "xуй", "xuy", "хуе", "хуё", "хуи", "хуя",
     "пизд", "пuзд", "pizd", "пезд",
@@ -108,7 +111,6 @@ async def get_rate_cmd(message: types.Message):
 
 # --- УПРАВЛЕНИЕ РЕЖИМАМИ ---
 
-# Команда /mode - для МАТОВ
 @dp.message(Command("mode"))
 async def toggle_profanity_mode(message: types.Message):
     global PROFANITY_FILTER_ACTIVE
@@ -126,7 +128,6 @@ async def toggle_profanity_mode(message: types.Message):
         await msg.delete()
     except: pass
 
-# Команда /spam - для СПАМА (Ссылки, реклама)
 @dp.message(Command("spam"))
 async def toggle_spam_mode(message: types.Message):
     global SPAM_FILTER_ACTIVE
@@ -152,30 +153,28 @@ async def delete_msg(message: types.Message):
 
 @dp.message()
 async def aggressive_anti_spam(message: types.Message):
-    # 1. Системные сообщения удаляем всегда (чтобы было чисто)
+    # 1. Удаляем системные сообщения (вступил/вышел)
     if message.content_type in [types.ContentType.NEW_CHAT_MEMBERS, types.ContentType.LEFT_CHAT_MEMBER]:
         await delete_msg(message)
         return
 
-    # 2. Админов пропускаем
+    # 2. Админов не трогаем
     if message.from_user.id in WHITELIST_IDS: return
 
-    # --- БЛОК АНТИ-СПАМА (Зависит от /spam) ---
+    # --- ПРОВЕРКА СПАМА (ЗАВИСИТ ОТ /spam) ---
     if SPAM_FILTER_ACTIVE:
         # Пересылки
         if message.forward_from or message.forward_from_chat:
             await delete_msg(message)
             return
-
         # Боты
         if message.via_bot:
             await delete_msg(message)
             return
 
         text_content = (message.text or message.caption or "").lower()
-
         if text_content:
-            # Ссылки и упоминания
+            # Ссылки и юзернеймы
             entities = message.entities or message.caption_entities or []
             for entity in entities:
                 if entity.type in ["url", "text_link"]:
@@ -187,19 +186,19 @@ async def aggressive_anti_spam(message: types.Message):
                     if clean_username not in ALLOWED_USERNAMES:
                         await delete_msg(message)
                         return
-
+            
             # Арабская вязь
             if any("\u0600" <= char <= "\u06FF" for char in text_content):
                 await delete_msg(message)
                 return
-
-            # Спам-слова
+            
+            # Слова-спам
             for word in SPAM_WORDS:
                 if word in text_content:
                     await delete_msg(message)
                     return
 
-    # --- БЛОК АНТИ-МАТА (Зависит от /mode) ---
+    # --- ПРОВЕРКА МАТОВ (ЗАВИСИТ ОТ /mode) ---
     if PROFANITY_FILTER_ACTIVE:
         text_content = (message.text or message.caption or "").lower()
         if text_content:
@@ -210,7 +209,7 @@ async def aggressive_anti_spam(message: types.Message):
 
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
-    print(f"🚀 Бот запущен! API_TOKEN получен. Курс: {current_custom_rate}")
+    print(f"🚀 Бот запущен! Курс: {current_custom_rate}")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
