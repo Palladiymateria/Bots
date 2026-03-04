@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import os
 import sys
 
@@ -7,23 +6,24 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# --- БЕЗОПАСНЫЙ ИМПОРТ .env ---
+# --- Загрузка .env ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-# --- ПОЛУЧЕНИЕ ТОКЕНА ---
+# --- ТОКЕН ---
 TOKEN = os.getenv("API_TOKEN")
 
 if not TOKEN:
-    print("❌ ОШИБКА: Токен не найден! Добавьте переменную API_TOKEN")
+    print("❌ Добавь API_TOKEN в переменные среды")
     sys.exit()
 
-# --- КОНФИГУРАЦИЯ ---
+# --- НАСТРОЙКИ ---
 WHITELIST_IDS = [7918010548]  # ID админов
-GROUP_URL = "https://t.me/tajikistan_tether"
+ALLOWED_GROUP_ID = -1003165407671  # 🔴 ВСТАВЬ СЮДА ID СВОЕЙ ГРУППЫ
+GROUP_URL = "https://t.me/tether_tjs"
 
 ALLOWED_USERNAMES = [
     "nazar7zoda",
@@ -34,28 +34,20 @@ ALLOWED_USERNAMES = [
     "nonameokey"
 ]
 
-# Флаги
 PROFANITY_FILTER_ACTIVE = True
 SPAM_FILTER_ACTIVE = True
 
-# --- СПИСОК СПАМА ---
 SPAM_WORDS = [
-    "заработок", "подпишись", "сигналы", "профит", "доход", "раскрутка",
-    "казино", "ставки", "vsem_privet", "в лс", "писать в лс", "p2p связки",
-    "http", "https", ".com", ".ru", ".net", ".org", "t.me"
+    "заработок", "подпишись", "сигналы", "профит",
+    "доход", "раскрутка", "казино", "ставки",
+    "в лс", "писать в лс", "http", "https",
+    ".com", ".ru", ".net", ".org", "t.me"
 ]
 
-# --- СПИСОК МАТОВ ---
 PROFANITY_WORDS = [
-    "хуй", "хyй", "xуй", "xuy", "хуе", "хуё", "хуи", "хуя",
-    "пизд", "пuзд", "pizd", "пезд",
-    "ебал", "еби", "ебь", "еба", "ёб", "yeb", "ипать", "еблан", "долбоеб",
-    "бляд", "блят", "бля", "blya",
-    "сука", "сучк", "суча", "suka",
-    "муда", "муди", "мyд", "muda",
-    "пидор", "пидар", "пидр", "pidor", "педик",
-    "гандон", "гондон", "gandon",
-    "манда", "залуп", "чмо", "лох", "дерьмо", "шлюх", "дроч"
+    "хуй", "пизд", "ебал", "еба", "бляд",
+    "сука", "муда", "пидор", "гандон",
+    "манда", "залуп", "чмо", "лох"
 ]
 
 bot = Bot(token=TOKEN)
@@ -78,13 +70,15 @@ current_custom_rate = get_saved_rate()
 @dp.message(Command("start"), F.chat.type == "private")
 async def start_private(message: types.Message):
     builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(
-        text="👥 Войти в группу",
-        url=GROUP_URL
-    ))
+    builder.row(
+        types.InlineKeyboardButton(
+            text="👥 Войти в группу",
+            url=GROUP_URL
+        )
+    )
 
     await message.answer(
-        "👋 Привет! Я бот Nazarooov.\n\n"
+        "👋 Привет!\n\n"
         "Курс USDT можно узнать в группе по команде /курс или /rate",
         reply_markup=builder.as_markup()
     )
@@ -100,15 +94,18 @@ async def set_rate(message: types.Message, command: CommandObject):
     if command.args:
         current_custom_rate = command.args
         save_rate(current_custom_rate)
-        await message.answer(
-            f"✅ Курс обновлен: {current_custom_rate} TJS"
-        )
+        await message.answer(f"✅ Курс обновлен: {current_custom_rate} TJS")
     else:
         await message.answer("⚠️ Используй: /set 12.50")
 
 # --- /rate ---
 @dp.message(Command("rate", "курс"))
 async def get_rate_cmd(message: types.Message):
+
+    # 🔴 Ограничение по группе
+    if message.chat.type != "private" and message.chat.id != ALLOWED_GROUP_ID:
+        return
+
     try:
         await message.delete()
     except:
@@ -163,16 +160,20 @@ async def toggle_spam_mode(message: types.Message):
     await asyncio.sleep(4)
     await msg.delete()
 
-# --- Удаление сообщений ---
+# --- Удаление сообщения ---
 async def delete_msg(message: types.Message):
     try:
         await message.delete()
     except:
         pass
 
-# --- Главный фильтр ---
+# --- ГЛАВНЫЙ ФИЛЬТР ---
 @dp.message()
 async def aggressive_anti_spam(message: types.Message):
+
+    # 🔴 Бот работает только в одной группе
+    if message.chat.type != "private" and message.chat.id != ALLOWED_GROUP_ID:
+        return
 
     if message.from_user.id in WHITELIST_IDS:
         return
@@ -204,13 +205,6 @@ async def aggressive_anti_spam(message: types.Message):
                 await delete_msg(message)
                 return
 
-            if entity.type == "mention":
-                raw = text_content[entity.offset:entity.offset + entity.length]
-                username = raw.replace("@", "").lower()
-                if username not in ALLOWED_USERNAMES:
-                    await delete_msg(message)
-                    return
-
         for word in SPAM_WORDS:
             if word in text_content:
                 await delete_msg(message)
@@ -223,7 +217,7 @@ async def aggressive_anti_spam(message: types.Message):
                 await delete_msg(message)
                 return
 
-# --- Запуск ---
+# --- ЗАПУСК ---
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
     print(f"🚀 Бот запущен! Курс: {current_custom_rate}")
