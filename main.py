@@ -1,53 +1,51 @@
 import asyncio
+import logging
 import os
 import sys
+
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# --- ЗАГРУЗКА .env (если есть) ---
+# --- БЕЗОПАСНЫЙ ИМПОРТ .env ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-# --- ТОКЕН ---
+# --- ПОЛУЧЕНИЕ ТОКЕНА ---
 TOKEN = os.getenv("API_TOKEN")
 
 if not TOKEN:
-    print("❌ ОШИБКА: Добавьте API_TOKEN в настройки хостинга.")
+    print("❌ ОШИБКА: Токен не найден! Добавьте переменную API_TOKEN")
     sys.exit()
 
-# --- НАСТРОЙКИ ---
-WHITELIST_IDS = [7918010548]
+# --- КОНФИГУРАЦИЯ ---
+WHITELIST_IDS = [7918010548]  # ID админов
 GROUP_URL = "https://t.me/tajikistan_tether"
-GROUP_ID = -1003165407671  # <-- ВСТАВЬ ID СВОЕЙ ГРУППЫ
 
+ALLOWED_USERNAMES = [
+    "nazar7zoda",
+    "x774n",
+    "chinascorp",
+    "didar_p2p",
+    "dovud_p2p",
+    "nonameokey"
+]
+
+# Флаги
 PROFANITY_FILTER_ACTIVE = True
 SPAM_FILTER_ACTIVE = True
 
-# --- ПРЕДУПРЕЖДЕНИЕ ---
-WARNING_TEXT = (
-    "🚨 ВНИМАНИЕ! ОФИЦИАЛЬНОЕ ПРЕДУПРЕЖДЕНИЕ 🚨\n\n"
-    "Зафиксированы случаи, когда мошенники копируют сообщения из нашей группы, "
-    "создают похожие каналы и выдают себя за официальную площадку.\n\n"
-    "❗ Они копируют тексты и оформление.\n"
-    "❗ Они могут писать в личные сообщения.\n"
-    "❗ Они могут создавать фейковые группы.\n\n"
-    "⚠️ ВАЖНО:\n"
-    "Откуп проводится исключительно через ЭТУ официальную группу.\n"
-    "Если вас добавляют в другие похожие чаты или пишут от имени проекта — "
-    "это мошенники.\n\n"
-    "Администрация не несёт ответственности за переводы средств третьим лицам.\n\n"
-    "🛡 Подписывайтесь только на нашу официальную группу."
-)
-
+# --- СПИСОК СПАМА ---
 SPAM_WORDS = [
-    "заработок","подпишись","сигналы","профит","доход","раскрутка","казино",
-    "ставки","в лс","писать в лс","http","https",".com",".ru",".net",".org","t.me"
+    "заработок", "подпишись", "сигналы", "профит", "доход", "раскрутка",
+    "казино", "ставки", "vsem_privet", "в лс", "писать в лс", "p2p связки",
+    "http", "https", ".com", ".ru", ".net", ".org", "t.me"
 ]
 
+# --- СПИСОК МАТОВ ---
 PROFANITY_WORDS = [
     "хуй", "хyй", "xуй", "xuy", "хуе", "хуё", "хуи", "хуя",
     "пизд", "пuзд", "pizd", "пезд",
@@ -60,11 +58,10 @@ PROFANITY_WORDS = [
     "манда", "залуп", "чмо", "лох", "дерьмо", "шлюх", "дроч"
 ]
 
-
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
 
-# --- КУРС ---
+# --- Работа с курсом ---
 def get_saved_rate():
     if os.path.exists("rate.txt"):
         with open("rate.txt", "r", encoding="utf-8") as f:
@@ -81,9 +78,13 @@ current_custom_rate = get_saved_rate()
 @dp.message(Command("start"), F.chat.type == "private")
 async def start_private(message: types.Message):
     builder = InlineKeyboardBuilder()
-    builder.row(types.InlineKeyboardButton(text="👥 Войти в группу", url=GROUP_URL))
+    builder.row(types.InlineKeyboardButton(
+        text="👥 Войти в группу",
+        url=GROUP_URL
+    ))
+
     await message.answer(
-        "👋 Привет!\n\n"
+        "👋 Привет! Я бот Nazarooov.\n\n"
         "Курс USDT можно узнать в группе по команде /курс или /rate",
         reply_markup=builder.as_markup()
     )
@@ -92,16 +93,18 @@ async def start_private(message: types.Message):
 @dp.message(Command("set"))
 async def set_rate(message: types.Message, command: CommandObject):
     global current_custom_rate
-    if message.from_user.id in WHITELIST_IDS:
-        if command.args:
-            current_custom_rate = command.args
-            save_rate(current_custom_rate)
-            await message.answer(
-                f"✅ Курс обновлен: **{current_custom_rate} TJS**",
-                parse_mode="Markdown"
-            )
-        else:
-            await message.answer("⚠️ Используй: /set 12.50", parse_mode="Markdown")
+
+    if message.from_user.id not in WHITELIST_IDS:
+        return
+
+    if command.args:
+        current_custom_rate = command.args
+        save_rate(current_custom_rate)
+        await message.answer(
+            f"✅ Курс обновлен: {current_custom_rate} TJS"
+        )
+    else:
+        await message.answer("⚠️ Используй: /set 12.50")
 
 # --- /rate ---
 @dp.message(Command("rate", "курс"))
@@ -112,58 +115,118 @@ async def get_rate_cmd(message: types.Message):
         pass
 
     text = (
-        f"🇹🇯 **Актуальный курс USDT/TJS**\n\n"
-        f"💰 **Курс**: {current_custom_rate} TJS\n\n"
-        f"🤝По UID или через сделку\n"
-        f"📞Менеджер @nazar7zoda\n"
+        "🇹🇯 Актуальный курс USDT/TJS\n\n"
+        f"💰 Курс: {current_custom_rate} TJS\n\n"
+        "🤝 По UID или через сделку\n"
+        "📞 Менеджер @nazar7zoda"
     )
 
-    await message.answer(text, parse_mode="Markdown")
+    await message.answer(text)
 
-# --- УДАЛЕНИЕ ---
+# --- /mode ---
+@dp.message(Command("mode"))
+async def toggle_profanity_mode(message: types.Message):
+    global PROFANITY_FILTER_ACTIVE
+
+    if message.from_user.id not in WHITELIST_IDS:
+        return
+
+    PROFANITY_FILTER_ACTIVE = not PROFANITY_FILTER_ACTIVE
+
+    try:
+        await message.delete()
+    except:
+        pass
+
+    status = "ВКЛЮЧЕН" if PROFANITY_FILTER_ACTIVE else "ОТКЛЮЧЕН"
+    msg = await message.answer(f"🤬 Фильтр матов: {status}")
+    await asyncio.sleep(4)
+    await msg.delete()
+
+# --- /spam ---
+@dp.message(Command("spam"))
+async def toggle_spam_mode(message: types.Message):
+    global SPAM_FILTER_ACTIVE
+
+    if message.from_user.id not in WHITELIST_IDS:
+        return
+
+    SPAM_FILTER_ACTIVE = not SPAM_FILTER_ACTIVE
+
+    try:
+        await message.delete()
+    except:
+        pass
+
+    status = "ВКЛЮЧЕН" if SPAM_FILTER_ACTIVE else "ОТКЛЮЧЕН"
+    msg = await message.answer(f"🛡 Фильтр спама: {status}")
+    await asyncio.sleep(4)
+    await msg.delete()
+
+# --- Удаление сообщений ---
 async def delete_msg(message: types.Message):
     try:
         await message.delete()
     except:
         pass
 
-# --- АНТИСПАМ ---
+# --- Главный фильтр ---
 @dp.message()
-async def aggressive_filter(message: types.Message):
+async def aggressive_anti_spam(message: types.Message):
 
     if message.from_user.id in WHITELIST_IDS:
         return
 
+    if message.content_type in [
+        types.ContentType.NEW_CHAT_MEMBERS,
+        types.ContentType.LEFT_CHAT_MEMBER
+    ]:
+        await delete_msg(message)
+        return
+
     text_content = (message.text or message.caption or "").lower()
 
+    # --- СПАМ ---
     if SPAM_FILTER_ACTIVE and text_content:
+
+        if message.forward_from or message.forward_from_chat:
+            await delete_msg(message)
+            return
+
+        if message.via_bot:
+            await delete_msg(message)
+            return
+
+        entities = message.entities or message.caption_entities or []
+
+        for entity in entities:
+            if entity.type in ["url", "text_link"]:
+                await delete_msg(message)
+                return
+
+            if entity.type == "mention":
+                raw = text_content[entity.offset:entity.offset + entity.length]
+                username = raw.replace("@", "").lower()
+                if username not in ALLOWED_USERNAMES:
+                    await delete_msg(message)
+                    return
+
         for word in SPAM_WORDS:
             if word in text_content:
                 await delete_msg(message)
                 return
 
+    # --- МАТЫ ---
     if PROFANITY_FILTER_ACTIVE and text_content:
         for word in PROFANITY_WORDS:
             if word in text_content:
                 await delete_msg(message)
                 return
 
-# --- АВТО-ПРЕДУПРЕЖДЕНИЕ КАЖДЫЙ ЧАС ---
-async def hourly_warning():
-    while True:
-        try:
-            await bot.send_message(GROUP_ID, WARNING_TEXT)
-        except Exception as e:
-            print("Ошибка отправки предупреждения:", e)
-        await asyncio.sleep(3600)
-
-# --- ЗАПУСК ---
+# --- Запуск ---
 async def main():
     await bot.delete_webhook(drop_pending_updates=True)
     print(f"🚀 Бот запущен! Курс: {current_custom_rate}")
-
-    asyncio.create_task(hourly_warning())
-
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
