@@ -6,14 +6,12 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-# --- Загрузка .env ---
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
     pass
 
-# --- ТОКЕН ---
 TOKEN = os.getenv("API_TOKEN")
 
 if not TOKEN:
@@ -21,18 +19,8 @@ if not TOKEN:
     sys.exit()
 
 # --- НАСТРОЙКИ ---
-WHITELIST_IDS = [7918010548]  # ID админов
-ALLOWED_GROUP_ID = -1003165407671  # 🔴 ВСТАВЬ СЮДА ID СВОЕЙ ГРУППЫ
+WHITELIST_IDS = [7918010548]
 GROUP_URL = "https://t.me/tether_tjs"
-
-ALLOWED_USERNAMES = [
-    "nazar7zoda",
-    "x774n",
-    "chinascorp",
-    "didar_p2p",
-    "dovud_p2p",
-    "nonameokey"
-]
 
 PROFANITY_FILTER_ACTIVE = True
 SPAM_FILTER_ACTIVE = True
@@ -71,15 +59,10 @@ current_custom_rate = get_saved_rate()
 async def start_private(message: types.Message):
     builder = InlineKeyboardBuilder()
     builder.row(
-        types.InlineKeyboardButton(
-            text="👥 Войти в группу",
-            url=GROUP_URL
-        )
+        types.InlineKeyboardButton(text="👥 Войти в группу", url=GROUP_URL)
     )
-
     await message.answer(
-        "👋 Привет!\n\n"
-        "Курс USDT можно узнать в группе по команде /курс или /rate",
+        "👋 Привет!\n\nКурс USDT можно узнать в группе по команде /курс или /rate",
         reply_markup=builder.as_markup()
     )
 
@@ -101,11 +84,6 @@ async def set_rate(message: types.Message, command: CommandObject):
 # --- /rate ---
 @dp.message(Command("rate", "курс"))
 async def get_rate_cmd(message: types.Message):
-
-    # 🔴 Ограничение по группе
-    if message.chat.type != "private" and message.chat.id != ALLOWED_GROUP_ID:
-        return
-
     try:
         await message.delete()
     except:
@@ -117,7 +95,6 @@ async def get_rate_cmd(message: types.Message):
         "🤝 По UID или через сделку\n"
         "📞 Менеджер @nazar7zoda"
     )
-
     await message.answer(text)
 
 # --- /mode ---
@@ -171,8 +148,8 @@ async def delete_msg(message: types.Message):
 @dp.message()
 async def aggressive_anti_spam(message: types.Message):
 
-    # 🔴 Бот работает только в одной группе
-    if message.chat.type != "private" and message.chat.id != ALLOWED_GROUP_ID:
+    # ✅ Пропускаем личку
+    if message.chat.type == "private":
         return
 
     if message.from_user.id in WHITELIST_IDS:
@@ -199,7 +176,6 @@ async def aggressive_anti_spam(message: types.Message):
             return
 
         entities = message.entities or message.caption_entities or []
-
         for entity in entities:
             if entity.type in ["url", "text_link"]:
                 await delete_msg(message)
